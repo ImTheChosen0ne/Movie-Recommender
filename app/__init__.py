@@ -3,14 +3,15 @@ from flask import Flask, request, redirect
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 
-from .api.recommender import recommender
+from .api.movie_recommender import movie_recommender
 
 from .config import Config
 
 app = Flask(__name__, static_url_path='/')
 
 app.config.from_object(Config)
-app.register_blueprint(recommender, url_prefix='/api/recommender')
+
+app.register_blueprint(movie_recommender, url_prefix='/api/recommend')
 
 # Application Security
 CORS(app)
@@ -55,3 +56,6 @@ def api_help():
 @app.errorhandler(404)
 def not_found(e):
     return app.send_static_file('index.html')
+
+if __name__ == '__main__':
+    app.run(debug=True)  # Run the Flask app
