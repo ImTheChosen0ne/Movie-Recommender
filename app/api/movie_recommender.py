@@ -15,29 +15,101 @@ movies_csv_path = os.path.join(current_dir, "movies.csv")
 movie_data = pd.read_csv(movies_csv_path, sep=";")
 
 def train_model(user_profile, movie_data, num_features=3, learning_rate=0.01, lambda_=0.1, epochs=200):
+    # movie_features = []
+    # for index, movie in movie_data.iterrows():
+    #     genres = movie["genres"]
+    #     keywords = movie["keywords"]
+    #     movie_features.append([genres, keywords])
+
+    # user_preferences = []
+    # for rating in user_profile["ratings"]:
+    #     rating_mapping = {"dislike": 1, "like": 3, "superlike": 5}
+    #     rating_numeric = rating_mapping.get(rating["rating"].lower())
+    #     if rating_numeric is not None:
+    #         user_preferences.append({"movieId": rating["movieId"], "rating": rating_numeric})
+
+    # movie_features_array = np.array(movie_features)
+    # user_preferences_array = np.array(user_preferences)
+
+    # def cofi_cost_func_v(X, W, b, Y, R, lambda_):
+    #     j = tf.linalg.matmul(X, tf.transpose(W)) + b - Y
+    #     J = 0.5 * tf.reduce_sum((j * R) ** 2) + (lambda_ / 2) * (tf.reduce_sum(X ** 2) + tf.reduce_sum(W ** 2))
+    #     return J
+
+    # num_users_r = 1
+    # num_movies_r = len(movie_data)
+
+    # Y_r = np.zeros((num_movies_r, num_users_r))
+    # for rating in user_preferences:
+    #     movie_index = movie_data.index[movie_data['movieId'] == rating['movieId']][0]
+    #     Y_r[movie_index, 0] = rating['rating']
+
+    # R_r = np.ones((num_movies_r, num_users_r))
+
+    # X_r = tf.Variable(np.random.rand(num_movies_r, num_features), dtype=tf.float32)
+    # W_r = tf.Variable(np.random.rand(num_users_r, num_features), dtype=tf.float32)
+    # b_r = tf.Variable(np.random.rand(1, num_users_r), dtype=tf.float32)
+
+    # for epoch in range(epochs):
+    #     with tf.GradientTape() as tape:
+    #         cost = cofi_cost_func_v(X_r, W_r, b_r, Y_r, R_r, lambda_)
+
+    #     gradients = tape.gradient(cost, [X_r, W_r, b_r])
+    #     X_r.assign_sub(learning_rate * gradients[0])
+    #     W_r.assign_sub(learning_rate * gradients[1])
+    #     b_r.assign_sub(learning_rate * gradients[2])
+
+    #     if epoch % 10 == 0:
+    #         print(f"Epoch {epoch + 1}, Cost: {cost.numpy():.4f}")
+
+    # Prepare movie features
     movie_features = []
     for index, movie in movie_data.iterrows():
+        # Assuming "genres" and "keywords" are columns in your DataFrame
         genres = movie["genres"]
         keywords = movie["keywords"]
-        movie_features.append([genres, keywords])
+        rating = movie["ratings"]
 
+        # Append the features to the movie_features list
+        movie_features.append([genres, keywords, rating])
+
+    # Convert movie features to numpy array
+    movie_features_array = np.array(movie_features)
+
+    # Prepare user preferences
     user_preferences = []
     for rating in user_profile["ratings"]:
+        # Map rating labels to numeric values
         rating_mapping = {"dislike": 1, "like": 3, "superlike": 5}
-        rating_numeric = rating_mapping.get(rating["rating"].lower())
+        rating_numeric = rating_mapping.get(rating["rating"].lower())  # Use .lower() to handle case sensitivity
+
         if rating_numeric is not None:
+            # Extract user ratings
             user_preferences.append({"movieId": rating["movieId"], "rating": rating_numeric})
 
+    # Convert movie features and user preferences to numpy arrays
     movie_features_array = np.array(movie_features)
     user_preferences_array = np.array(user_preferences)
 
+    # Define collaborative filtering function
     def cofi_cost_func_v(X, W, b, Y, R, lambda_):
-        j = tf.linalg.matmul(X, tf.transpose(W)) + b - Y
-        J = 0.5 * tf.reduce_sum((j * R) ** 2) + (lambda_ / 2) * (tf.reduce_sum(X ** 2) + tf.reduce_sum(W ** 2))
+        """
+        Returns the cost for collaborative filtering
+        Vectorized for speed using TensorFlow operations.
+        """
+        # Implementation of collaborative filtering cost function
+        j = (tf.linalg.matmul(X, tf.transpose(W)) + b - Y) * R
+        J = 0.5 * tf.reduce_sum(j**2) + (lambda_/2) * (tf.reduce_sum(X**2) + tf.reduce_sum(W**2))
         return J
 
+    # Train the model using collaborative filtering
     num_users_r = 1
     num_movies_r = len(movie_data)
+    num_features_r = 3
+
+    # Prepare user ratings
+    # num_movies = len(movie_data)
+    # num_users = 1  # Only one user in this case
 
     Y_r = np.zeros((num_movies_r, num_users_r))
     for rating in user_preferences:
@@ -46,10 +118,17 @@ def train_model(user_profile, movie_data, num_features=3, learning_rate=0.01, la
 
     R_r = np.ones((num_movies_r, num_users_r))
 
-    X_r = tf.Variable(np.random.rand(num_movies_r, num_features), dtype=tf.float32)
-    W_r = tf.Variable(np.random.rand(num_users_r, num_features), dtype=tf.float32)
+    # Set ratings of previously watched movies to zero in Y_r
+    for movie in user_profile["viewedMovies"]:
+        movie_index = movie_data.index[movie_data['movieId'] == movie['movieId']][0]
+        Y_r[movie_index, 0] = 0
+
+    # Initialize parameters
+    X_r = tf.Variable(np.random.rand(num_movies_r, num_features_r), dtype=tf.float32)
+    W_r = tf.Variable(np.random.rand(num_users_r, num_features_r), dtype=tf.float32)
     b_r = tf.Variable(np.random.rand(1, num_users_r), dtype=tf.float32)
 
+    # Train the model using collaborative filtering
     for epoch in range(epochs):
         with tf.GradientTape() as tape:
             cost = cofi_cost_func_v(X_r, W_r, b_r, Y_r, R_r, lambda_)
@@ -59,6 +138,7 @@ def train_model(user_profile, movie_data, num_features=3, learning_rate=0.01, la
         W_r.assign_sub(learning_rate * gradients[1])
         b_r.assign_sub(learning_rate * gradients[2])
 
+        # Print cost for monitoring
         if epoch % 10 == 0:
             print(f"Epoch {epoch + 1}, Cost: {cost.numpy():.4f}")
 
@@ -92,14 +172,33 @@ def find_similar_movies(movie_name, num_similar_movies=25):
 
     movie_index = movie_data.index[movie_data['title'] == movie_name["title"]].tolist()[0]
 
-    movie_features = movie_data['genres'] + ' ' + movie_data['keywords']
+        # Extract movie features (genres, keywords, and ratings) for similarity calculation
+    movie_features = movie_data['genres'] + ' ' + movie_data['keywords'] + ' ' + movie_data['ratings']
+
+    # Convert ratings to numerical values
+    rating_mapping = {"dislike": 1, "like": 3, "superlike": 5}
+
+    def extract_ratings(rating_string):
+        ratings = rating_string.split('|')
+        numerical_ratings = [rating_mapping[r.split(',')[1]] for r in ratings]
+        return sum(numerical_ratings) / len(numerical_ratings) if len(numerical_ratings) > 0 else 0
+
+    # Apply the extract_ratings function to each row of the 'ratings' column
+    movie_data['ratings'] = movie_data['ratings'].apply(extract_ratings)
+
+    # Initialize the TF-IDF vectorizer
     tfidf_vectorizer = TfidfVectorizer()
+
+    # Fit and transform the movie features
     tfidf_matrix = tfidf_vectorizer.fit_transform(movie_features)
 
+    # Compute similarity scores using cosine similarity
     cosine_similarities = linear_kernel(tfidf_matrix[movie_index], tfidf_matrix).flatten()
 
+    # Get indices of top similar movies
     similar_movie_indices = cosine_similarities.argsort()[-num_similar_movies-1:-1][::-1]
 
+    # Get similar movie titles
     similar_movie_titles = movie_data.iloc[similar_movie_indices]['title'].values
 
     return similar_movie_titles
