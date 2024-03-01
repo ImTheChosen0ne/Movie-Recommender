@@ -8,7 +8,7 @@ import os
 
 movie_recommender = Blueprint('recommend', __name__)
 
-def train_model(user_profile, movie_data, num_features=3, learning_rate=0.01, lambda_=0.1, epochs=200):
+def train_model(user_profile, movie_data, num_features=7, learning_rate=0.01, lambda_=0.1, epochs=300):
     rating_mapping = {"dislike": 1, "like": 3, "superlike": 5}
 
     movie_features = []
@@ -18,7 +18,13 @@ def train_model(user_profile, movie_data, num_features=3, learning_rate=0.01, la
         ratings = [rating_mapping.get(rating['rating'].lower(), 0) for rating in movie['ratings']]
         rating_avg = sum(ratings) / len(ratings) if ratings else 0
 
-        movie_features.append([genres, keywords, rating_avg])
+        movie_length = movie['runtime']
+        director = movie['director']
+        actors = ', '.join(movie['casts'])
+        release_year = movie['releaseDate']
+        companies = ', '.join(movie['companies'])
+
+        movie_features.append([genres, keywords, rating_avg, director, actors, release_year, companies, movie_length])
 
     user_preferences = []
     for rating in user_profile["profileRatings"]:
@@ -52,9 +58,9 @@ def train_model(user_profile, movie_data, num_features=3, learning_rate=0.01, la
 
     R_r = np.ones((num_movies_r, num_users_r))
 
-    X_r = tf.Variable(np.random.rand(num_movies_r, num_features), dtype=tf.float32)
-    W_r = tf.Variable(np.random.rand(num_users_r, num_features), dtype=tf.float32)
-    b_r = tf.Variable(np.random.rand(1, num_users_r), dtype=tf.float32)
+    X_r = tf.Variable(np.random.rand(num_movies_r, num_features), dtype=tf.float64)
+    W_r = tf.Variable(np.random.rand(num_users_r, num_features), dtype=tf.float64)
+    b_r = tf.Variable(np.random.rand(1, num_users_r), dtype=tf.float64)
 
     for epoch in range(epochs):
         with tf.GradientTape() as tape:
