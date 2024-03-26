@@ -29,6 +29,7 @@ numpy = "*"
 tensorflow = "*"
 pandas = "*"
 scikit-learn = "*"
+mysql-connector-python = "*"
 
 [dev-packages]
 
